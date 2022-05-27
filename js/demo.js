@@ -994,15 +994,29 @@ var TSofaFile = {
       return Result
    }
    ,GetClosestIndexSpherical:function(Self, Phi, Theta, Radius) {
-      /*
-      var Result = 0;
-      var Position$4 = [0,0,0];
-      Position$4[0] = Phi;
-      Position$4[1] = Theta;
-      Position$4[2] = Radius;
-      Position$4 = SphericalToCartesian(Position$4.slice(0));
-      Result = TSofaFile.GetClosestIndexCartesian(Self,Position$4[0],Position$4[1],Position$4[2]);
-      */
+      
+      // Modified by <rshiv2> for EE 267 final project
+
+      // The 3D3A dataset includes 648 HRTF ThetaMeasurements. These measurements 
+      // are assigned indices ranging from 0 to 647. The measurements are grouped
+      // according to elevation angle and then by azimuthal angle. Note that
+      // there are 72 distinct azimuthal angles:
+      //
+      // azimuthalAngles = [0, 5, 10, ... , 355]
+      //
+      // There are also 9 distinct elevation angles:
+      //
+      // elevationAngles = [-57, -30, -15, 0, 15, 30, 45, 60, 75].
+      // 
+      // In this function, we take as input a Phi and Theta
+      // angle and compute which of the distinct azimuthal and elevation
+      // angles these inputs are closest to, respectively.
+      //
+      // We take the index that these closest azimuthal and elevation
+      // angles correspond to, to compute a final HRTF index:
+      // 
+      // HRTF_INDEX = elevationAngleIndex * 72 + azimuthalAngleIndex;
+
       // Figure out which of [-57, -30, -15, 0, 15, 30, 45, 60, 75] that Theta is closest to
       const ThetaMeasurements = [-57, -30, -15, 0, 15, 30, 45, 60, 75];
       if (Theta < -57.0) {
@@ -1027,6 +1041,7 @@ var TSofaFile = {
 
       var closestPhiIndex = ((Phi % 5) >= 2.5) ? (parseInt(Phi / 5) + 1) : (parseInt(Phi / 5));
 
+      // Compute HRTF index
       Result = closestThetaIndex * 72 + closestPhiIndex;
 
       return Result
@@ -3082,9 +3097,5 @@ var Application = null;
 var CordovaAvailable = false;
 var MainScreen = null;
 var Application = TApplication.Create$175($New(TApplication));
-// var AudioContext = window.AudioContext || window.webkitAudioContext;
-//     AudioContext = new AudioContext();
-// ;
-// TApplication.CreateElement(Application,TMainScreen);
-// TApplication.Run(Application);
+
 

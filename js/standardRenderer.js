@@ -282,7 +282,8 @@ var StandardRenderer = function ( webglRenderer, teapots, dispParams ) {
 			musicNode.start();
 		}
 	)
-		
+	
+	// Resume the audio context on a user gesture.
 	window.onclick = () => {
 		if (listener.context.state === "suspended") {
 			listener.context.resume().then(console.log("Audio context resumed!"));
