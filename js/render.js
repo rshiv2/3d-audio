@@ -73,29 +73,6 @@ var teapot1 =
 
 teapots.push( teapot1 );
 
-var teapot2 =
-	new Teapot( new THREE.Vector3( 0, - 350, 100 ),
-		$( "#vShaderMultiPhong" ).text(),
-		$( "#fShaderMultiPhong" ).text() );
-
-//teapots.push( teapot2 );
-
-
-var teapot3 =
-	new Teapot( new THREE.Vector3( 500, - 200, - 130 ),
-		$( "#vShaderMultiPhong" ).text(),
-		$( "#fShaderMultiPhong" ).text() );
-
-//teapots.push( teapot3 );
-
-var teapot4 =
-	new Teapot( new THREE.Vector3( 0, 300, - 200 ),
-		$( "#vShaderMultiPhong" ).text(),
-		$( "#fShaderMultiPhong" ).text() );
-
-//teapots.push( teapot4 );
-
-
 
 // Create an instance of our StateCoontroller class.
 // By using this class, we store the mouse movement to change the scene to be
@@ -133,11 +110,14 @@ request.onload = () => {
 
 request.send()
 
-function resample(array) {
+// downsample2
+//
+// Downsample ArrayBuffer by factor of 2
+//
+function downsample2(array) {
 	const new_array = new Float32Array(array.length / 2);
 	for (var i = 0; i < new_array.length; i += 1) {
 		new_array[i] = array[2 * i];
-		// new_array[i] = (array[2 * i] + array[2 * i + 1] + array[2*i+2]) / 3.0;
 	}
 	return new_array;
 }
@@ -162,43 +142,44 @@ function resample(array) {
 // If you are interested, please check out the documentation of
 // requestAnimationFrame().
 // https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame
+
+// Don't change the convolver node buffers on every frame because this causes
+// "clicking" audio artifacts. Instead, change the buffers every n frames. This
+// still sounds okay because our auditory systems are less sensitive than our
+// visual systems, and the updates are still pretty fast.
 const FILTER_CHANGE_FRAMES = 20;
 var frames_until_next_filter_change = 0;
 
+// Convert radians to degrees
+function rad2deg(radians) {
+	return radians * 180 / Math.PI;
+}
 
 function animate() {
-	const {listener, lNode, rNode} = standardRenderer.getNodes();
-
-	// Position after view transform is verified to be correct
-	// When the camera looks directly down the z axis, teapot one is
-	// located at approximately (-500, 0, -1600). This makes sense because the teapot
-	// is at (-500, 0, 0) in world coordaintes and the camera is at roughly (0, 0, 1600).
-	// 
-	// When the camera looks directly at teapot one, teapot one's position is roughly
-	// (0, 0, -1600). 
-	var position3D = teapot1.position;
-	var position = new THREE.Vector4(position3D.x, position3D.y, position3D.z, 1.0);
-	var viewMat = mat.stereoViewMat.C;
-	position.applyMatrix4(viewMat);
-
-	
-	x = -position.z;
-	y = -position.x;
-	z = position.y;
-
-	var yaw = Math.atan2(y, x) * 180.0 / Math.PI;
-	var radius = Math.sqrt(x*x + y*y + z*z);
-	var pitch = Math.asin(z / radius) * 180.0 / Math.PI;
-
-	//console.log("Yaw: " + yaw + ", Pitch: " + pitch + ", Radius: " + radius);
 
 	if (frames_until_next_filter_change == 0) {
+		const {listener, lNode, rNode} = standardRenderer.getNodes();
+
+		// compute position of teapots in view space
+		var position = new THREE.Vector4(teapot1.position.x, teapot1.position.y, teapot1.position.z, 1.0);
+		position.applyMatrix4(mat.stereoViewMat.C);
+
+		// convert EE 267 coordinate system to 3D3A coordinate system (i.e., the AES69-2015 coordinate system)
+		x = -position.z;
+		y = -position.x;
+		z = position.y;
+
+		// compute Euler angles
+		var yaw = rad2deg(Math.atan2(y, x));
+		var radius = Math.sqrt(x*x + y*y + z*z);
+		var pitch = rad2deg((z / radius));
+
+		// retrieve left and right HRTFs and downsample to 48 kHz
 		const _filter = sofaGetFilterSpherical(handle, yaw, pitch, radius);
-		var l32 = new Float32Array(_filter.Left);
-		var r32 = new Float32Array(_filter.Right);
-		// l32 = resample(l32);
-		// r32 = resample(r32);
+		var l32 = downsample2(new Float32Array(_filter.Left));
+		var r32 = downsample2(new Float32Array(_filter.Right));
 		
+		// load left HRTF into left ConvolverNode
 		const LaudioBuffer = listener.context.createBuffer(1, l32.length, listener.context.sampleRate);
 		const LchannelData = LaudioBuffer.getChannelData(0);
 		for (var i = 0; i < LaudioBuffer.length; i++) { 
@@ -206,15 +187,18 @@ function animate() {
 		}
 		lNode.buffer = LaudioBuffer;
 	
+		// load right HRTF into right ConvolverNode
 		const RaudioBuffer = listener.context.createBuffer(1, r32.length, listener.context.sampleRate);
 		const RchannelData = RaudioBuffer.getChannelData(0);
 		for (var i = 0; i < RaudioBuffer.length; i++) { 
 			RchannelData[i] = r32[i];
 		}
 		rNode.buffer = RaudioBuffer;
+
+		// Reset counter
 		frames_until_next_filter_change = FILTER_CHANGE_FRAMES;
-		console.log("Here");
 	} else {
+		// Decrement counter
 		frames_until_next_filter_change--;
 	}
 
@@ -225,16 +209,6 @@ function animate() {
 
 	// update model/view/projection matrices
 	mat.update( sc.state );
-
-	// Update the L/R convolver node buffers.
-	
-	
-
-	//console.log(filter);
-	// console.log("Filter sample rate: " + filter.SampleRate);
-
-	//var Left32 = resample(new Float32Array(filter.Left));
-	//var Right32 = resample(new Float32Array(filter.Right));
 
 	if ( renderingMode === STEREO_MODE ) {
 

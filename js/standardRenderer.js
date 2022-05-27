@@ -283,9 +283,6 @@ var StandardRenderer = function ( webglRenderer, teapots, dispParams ) {
 		}
 	)
 		
-	// Resume the audio context on a user gesture.
-	// var musicPlaying = false;
-
 	window.onclick = () => {
 		if (listener.context.state === "suspended") {
 			listener.context.resume().then(console.log("Audio context resumed!"));
@@ -296,9 +293,9 @@ var StandardRenderer = function ( webglRenderer, teapots, dispParams ) {
 
 
 	 /* Functions */
-	 function getNodes() {
-		 return {listener: listener, lNode: lNode, rNode: rNode};
-	 }
+	function getNodes() {
+		return {listener: listener, lNode: lNode, rNode: rNode};
+	}
 
 	// Update all of the uniforms that are going to be parsed to the GLSL shaders
 	//
